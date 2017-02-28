@@ -83,20 +83,5 @@ func (client *GuideboxClient) GetShows(args ...interface{}) (result map[string]i
 	return result, err
 }
 
-func (client *GuideboxClient) GetItem(itemID int) (Item, error) {
-	item := Item{}
-	request_url := itemURL + strconv.Itoa(itemID) + ".json"
-	_, err := client.sling.New().Get(request_url).ReceiveSuccess(&item)
-
-	if err != nil {
-		return item, err
-	}
-
-	if item.ID == 0 {
-		return item, errors.New("Invalid item ID, no such item exists.")
-	}
-
-	return item, err
-}
 
 
