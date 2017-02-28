@@ -1,45 +1,47 @@
 package guidebox
 
-
 // Hacker News API Documentation:
 // https://github.com/HackerNews/API
 
 import (
-"github.com/dghubble/sling"
-"net/http"
-"strconv"
-"errors"
+	"github.com/dghubble/sling"
+	"net/http"
+	"strconv"
+	"errors"
 	"strings"
+	"fmt"
+	"path"
 )
 
 const (
-	BaseURL = "http://api-public.guidebox.com"
+	BaseURL    = "http://api-public.guidebox.com"
 	APIVersion = "v2"
-	showsURL = APIVersion + "/shows/"
-	userURL = APIVersion + "/user/"
-	topURL =  APIVersion + "/topstories.json"
-	newURL = APIVersion + "/newstories.json"
-	bestURL = APIVersion + "/beststories.json"
-	askURL = APIVersion + "/askstories.json"
-	showURL = APIVersion + "/showstories.json"
-	jobsURL = APIVersion + "/jobstories.json"
-	updatesURL = APIVersion + "/updates.json"
-	maxItemURL = APIVersion + "/maxitem.json"
+	showsURL   = "/shows"
+
+	userURL    = "/user/"
+	topURL     = "/topstories.json"
+	newURL     = "/newstories.json"
+	bestURL    = "/beststories.json"
+	askURL     = "/askstories.json"
+	showURL    = "/showstories.json"
+	jobsURL    = "/jobstories.json"
+	updatesURL = "/updates.json"
+	maxItemURL = "/maxitem.json"
 )
 
-type GuideboxClient struct{
-	sling *sling.Sling
+type GuideboxClient struct {
+	sling  *sling.Sling
 	apiKey string
 	region string
 }
 
-func NewGuideboxClient(client *http.Client, APIkey string, args...interface{}) *GuideboxClient {
+func NewGuideboxClient(client *http.Client, APIkey string, args ...interface{}) *GuideboxClient {
 	region := "US"
 	if args["region"] != nil {
 		region = args["region"].(string)
 	}
 	return &GuideboxClient{
-		sling: sling.New().Client(client).Base(BaseURL),
+		sling:  sling.New().Client(client).Base(BaseURL).Path(APIVersion),
 		apiKey: APIkey,
 		region: region,
 	}
@@ -47,13 +49,9 @@ func NewGuideboxClient(client *http.Client, APIkey string, args...interface{}) *
 
 /*  Data Structs */
 
-
-
-
-
 /* End Data Structs */
 
-func (client *GuideboxClient) GetShows(args...interface{}){
+func (client *GuideboxClient) GetShows(args ...interface{}) (result map[string]interface{}, err error) {
 	var offset string
 	var limit string
 	var sources string
@@ -62,6 +60,7 @@ func (client *GuideboxClient) GetShows(args...interface{}){
 
 	params := map[string]interface{}{}
 
+	params["api_key"] = client.apiKey
 	switch {
 	case offset:
 		params["offset"] = offset
@@ -72,15 +71,21 @@ func (client *GuideboxClient) GetShows(args...interface{}){
 	case platform:
 		params["platform"] = platform
 	case tags:
-		params["tags"] = strings.join(tags, ",")
+		params["tags"] = strings.Join(tags, ",")
+	}
+	
+	_, err = client.sling.New().Get(showsURL).QueryStruct(params).ReceiveSuccess(&result)
+
+	if err != nil{
+		return nil, err
 	}
 
+	return result, err
 }
-
 
 func (client *GuideboxClient) GetItem(itemID int) (Item, error) {
 	item := Item{}
-	request_url := itemURL +  strconv.Itoa(itemID) + ".json"
+	request_url := itemURL + strconv.Itoa(itemID) + ".json"
 	_, err := client.sling.New().Get(request_url).ReceiveSuccess(&item)
 
 	if err != nil {
@@ -169,7 +174,6 @@ func (client *GuideboxClient) GetShowGuideboxStories() ([]int, error) {
 
 	return showGuideboxStories, nil
 }
-
 
 func (client *GuideboxClient) GetAskGuideboxStories() ([]int, error) {
 	var askGuideboxStories []int
