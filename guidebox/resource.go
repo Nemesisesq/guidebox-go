@@ -1,281 +1,208 @@
 package guidebox
 
-type ApiKey string
-from __future__ import unicode_literals
 
-import json
+// Hacker News API Documentation:
+// https://github.com/HackerNews/API
 
-from guidebox import api_requestor
-from guidebox import error
-from guidebox.compat import string_type
-type Types struct {
-	channel Channel
-	clip    Clip
-	episode Episode
-	genre   Genre
-	movie   Movie
-	person  Person
-	quota   Quota
-	segment Segment
-	show    Show
-	source  Source
-	tag     Tag
-	update  Update
+import (
+"github.com/dghubble/sling"
+"net/http"
+"strconv"
+"errors"
+	"strings"
+)
+
+const (
+	BaseURL = "http://api-public.guidebox.com"
+	APIVersion = "v2"
+	showsURL = APIVersion + "/shows/"
+	userURL = APIVersion + "/user/"
+	topURL =  APIVersion + "/topstories.json"
+	newURL = APIVersion + "/newstories.json"
+	bestURL = APIVersion + "/beststories.json"
+	askURL = APIVersion + "/askstories.json"
+	showURL = APIVersion + "/showstories.json"
+	jobsURL = APIVersion + "/jobstories.json"
+	updatesURL = APIVersion + "/updates.json"
+	maxItemURL = APIVersion + "/maxitem.json"
+)
+
+type GuideboxClient struct{
+	sling *sling.Sling
+	apiKey string
+	region string
 }
 
-func guidebox_format(resp map[string]interface{}) {
-
-	//Recursively Set Objects for Lists
-
-
-	for _, value := resp {
-
+func NewGuideboxClient(client *http.Client, APIkey string, args...interface{}) *GuideboxClient {
+	region := "US"
+	if args["region"] != nil {
+		region = args["region"].(string)
 	}
-	resp["results"] = [guidebox_format(i)
-	for
-	i
-	in
-	resp["results"]]
-	return GuideboxObject.construct_from(resp)
-	if isinstance(resp, dict) and
-	not
-	isinstance(resp, GuideboxObject):
-	resp = resp.copy()
-	if "object" in
-	resp
-	and
-	isinstance(resp["object"], string_type):
-	klass = types.get(resp["object"], GuideboxObject) else :
-klass = GuideboxObject
-
-#Check For Arrays
-for key in resp:
-if isinstance(resp[key], list):
-resp[key] = [guidebox_format(i) for i in resp[key]]
-return klass.construct_from(resp) else:
-return resp
+	return &GuideboxClient{
+		sling: sling.New().Client(client).Base(BaseURL),
+		apiKey: APIkey,
+		region: region,
+	}
 }
 
-type GuideboxObject(dict):
-
-func __init__(self, id = None, **params):
-super(GuideboxObject, self).__init__()
-if id:
-self["id"] = id
+/*  Data Structs */
 
 
-func construct_from(cls, values):
-instance = cls(values.get("id"))
-for k, v in values.items():
-instance[k] = guidebox_format(v)
-return instance
-
-func __getattr__(self, k):
-try:
-return self[k]
-except KeyError:
-raise AttributeError(k) #pragma: no cover
-
-func __setattr__(self, k, v):
-self[k] = v
-
-func __repr__(self):
-ident_parts = [
-type (
-	self
-).__name__]
-
-if isinstance(self.get("object"), string_type):
-ident_parts.append(self.get("object"))
-
-if isinstance(self.get("id"), string_type):
-ident_parts.append("id=%s" % (self.get("id"), ))
-
-unicode_repr = ""<%s at %s> JSON: %s"" % (
-"" "".join(ident_parts), hex(id(self)), str(self))
-
-return unicode_repr
-
-func __str__(self):
-return json.dumps(self, sort_keys = True, indent = 2)
-
-type APIResource(GuideboxObject):
-
-func retrieve(cls, id, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s"" % (cls.endpoint, id), params)
-return guidebox_format(response)
-
-# API Operations
-type ListableAPIResource(APIResource):
-
-func list(cls, **params):
-for key, value in params.items():
-if isinstance(params[key], dict):
-for subKey in value:
-params[str(key) + ""["" + subKey + ""]""] = value[subKey]
-del params[key]
-elif isinstance(params[key], list):
-params[str(key) + ""[]""] = params[key]
-del params[key]
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", cls.endpoint, params)
-return guidebox_format(response)
-
-type ImageableAPIResource(APIResource):
-
-func images(cls, id, **params):
-for key, value in params.items():
-if isinstance(params[key], dict):
-for subKey in value:
-params[str(key) + ""["" + subKey + ""]""] = value[subKey]
-del params[key]
-elif isinstance(params[key], list):
-params[str(key) + ""[]""] = params[key]
-del params[key]
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s/images"" % (cls.endpoint, id), params)
-return guidebox_format(response)
-
-type Channel(ListableAPIResource, ImageableAPIResource):
-endpoint = ""/channels""
-
-type Clip(ListableAPIResource, ImageableAPIResource):
-endpoint = ""/clips""
-
-type Episode(ListableAPIResource, ImageableAPIResource):
-endpoint = ""/episodes""
-
-type Genre(ListableAPIResource):
-endpoint = ""/genres""
-
-type Movie(ListableAPIResource, ImageableAPIResource):
-endpoint = ""/movies""
-
-func related(cls, id, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s/related"" % (cls.endpoint, id), params)
-return guidebox_format(response)
 
 
-func trailers(cls, id, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s/videos"" % (cls.endpoint, id), params)
-return guidebox_format(response)
 
-type Person(ImageableAPIResource):
-endpoint = ""/person""
+/* End Data Structs */
 
-func credits(cls, id, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s/credits"" % (cls.endpoint, id), params)
-return guidebox_format(response)
+func (client *GuideboxClient) GetShows(args...interface{}){
+	var offset string
+	var limit string
+	var sources string
+	var platform string
+	var tags []string
 
-type Quota(APIResource):
-endpoint = ""/quota""
+	params := map[string]interface{}{}
 
-func retrieve(cls, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", cls.endpoint, params)
-print response
+	switch {
+	case offset:
+		params["offset"] = offset
+	case limit:
+		params["limit"] = limit
+	case sources:
+		params["sources"] = sources
+	case platform:
+		params["platform"] = platform
+	case tags:
+		params["tags"] = strings.join(tags, ",")
+	}
 
-type Region(ListableAPIResource):
-endpoint = ""/regions""
-
-type Search(APIResource):
-endpoint = ""/search""
-
-func movies(cls, **params):
-params["type"] = "movie"
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", cls.endpoint, params)
-return guidebox_format(response)
+}
 
 
-func shows(cls, **params):
-params["type"] = "show"
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", cls.endpoint, params)
-return guidebox_format(response)
+func (client *GuideboxClient) GetItem(itemID int) (Item, error) {
+	item := Item{}
+	request_url := itemURL +  strconv.Itoa(itemID) + ".json"
+	_, err := client.sling.New().Get(request_url).ReceiveSuccess(&item)
+
+	if err != nil {
+		return item, err
+	}
+
+	if item.ID == 0 {
+		return item, errors.New("Invalid item ID, no such item exists.")
+	}
+
+	return item, err
+}
+
+func (client *GuideboxClient) GetUser(userID string) (User, error) {
+	user := User{}
+	request_url := userURL + userID + ".json"
+	_, err := client.sling.New().Get(request_url).ReceiveSuccess(&user)
+
+	if err != nil {
+		return user, err
+	}
+
+	if user.ID == "" {
+		return user, errors.New("Invalid user ID, user does not exist or has no activity.")
+	}
+
+	return user, err
+}
+
+func (client *GuideboxClient) GetTopStories() ([]int, error) {
+	var topStories []int
+
+	_, err := client.sling.New().Get(topURL).ReceiveSuccess(&topStories)
+
+	if err != nil {
+		return topStories, err
+	}
+
+	return topStories, nil
+}
+
+func (client *GuideboxClient) GetNewStories() ([]int, error) {
+	var newStories []int
+
+	_, err := client.sling.New().Get(newURL).ReceiveSuccess(&newStories)
+
+	if err != nil {
+		return newStories, err
+	}
+
+	return newStories, nil
+}
+
+func (client *GuideboxClient) GetMaxItem() (int, error) {
+	var max int
+
+	_, err := client.sling.New().Get(maxItemURL).ReceiveSuccess(&max)
+
+	if err != nil {
+		return max, err
+	}
+
+	return max, nil
+}
+
+func (client *GuideboxClient) GetBestStories() ([]int, error) {
+	var bestStories []int
+
+	_, err := client.sling.New().Get(bestURL).ReceiveSuccess(&bestStories)
+
+	if err != nil {
+		return bestStories, err
+	}
+
+	return bestStories, nil
+}
+
+func (client *GuideboxClient) GetShowGuideboxStories() ([]int, error) {
+	var showGuideboxStories []int
+
+	_, err := client.sling.New().Get(showURL).ReceiveSuccess(&showGuideboxStories)
+
+	if err != nil {
+		return showGuideboxStories, err
+	}
+
+	return showGuideboxStories, nil
+}
 
 
-func person(cls, **params):
-params["type"] = "person"
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", cls.endpoint, params)
-return guidebox_format(response)
+func (client *GuideboxClient) GetAskGuideboxStories() ([]int, error) {
+	var askGuideboxStories []int
 
+	_, err := client.sling.New().Get(askURL).ReceiveSuccess(&askGuideboxStories)
 
-func channels(cls, **params):
-params["type"] = "channel"
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", cls.endpoint, params)
-return guidebox_format(response)
+	if err != nil {
+		return askGuideboxStories, err
+	}
 
-type Segment(ListableAPIResource, ImageableAPIResource):
-endpoint = ""/segments""
+	return askGuideboxStories, nil
+}
 
-type Show(ListableAPIResource, ImageableAPIResource):
-endpoint = ""/shows""
+func (client *GuideboxClient) GetJobStories() ([]int, error) {
+	var jobStories []int
 
-func seasons(cls, id, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s/seasons"" % (cls.endpoint, id), params)
-return guidebox_format(response)
+	_, err := client.sling.New().Get(jobsURL).ReceiveSuccess(&jobStories)
 
+	if err != nil {
+		return jobStories, err
+	}
 
-func related(cls, id, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s/related"" % (cls.endpoint, id), params)
-return guidebox_format(response)
+	return jobStories, nil
+}
 
+func (client *GuideboxClient) GetUpdate() (Update, error) {
+	update := Update{}
 
-func episodes(cls, id, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s/episodes"" % (cls.endpoint, id), params)
-return guidebox_format(response)
+	_, err := client.sling.New().Get(updatesURL).ReceiveSuccess(&update)
 
+	if err != nil {
+		return update, err
+	}
 
-func clips(cls, id, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s/clips"" % (cls.endpoint, id), params)
-return guidebox_format(response)
-
-
-func segments(cls, id, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s/segments"" % (cls.endpoint, id), params)
-return guidebox_format(response)
-
-
-func available_content(cls, id, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s/%s/available_content"" % (cls.endpoint, id), params)
-return guidebox_format(response)
-
-type Source(ListableAPIResource):
-endpoint = ""/sources""
-
-type Tag(ListableAPIResource):
-endpoint = ""/tags""
-
-type Update(APIResource):
-endpoint = ""/updates""
-
-func all(cls, **params):
-requestor = api_requestor.APIRequestor()
-response = requestor.request("get", ""%s"" % (cls.endpoint), params)
-return guidebox_format(response)
-
-type Postcard(ListableAPIResource):
-endpoint = ""/postcards""
-
-func create(cls, **params):
-if isinstance(params, dict):
-if "from_address" in params:
-params["from"] = params["from_address"]
-params.pop("from_address")
-if "to_address" in params:
-params["to"] = params["to_address"]
-params.pop("to_address")
-return super(Postcard, cls).create(**params)
+	return update, nil
+}
