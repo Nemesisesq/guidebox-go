@@ -6,6 +6,8 @@ package guidebox
 import (
 	"net/http"
 
+	"fmt"
+
 	"github.com/dghubble/sling"
 )
 
@@ -29,14 +31,14 @@ type GuideboxClient struct {
 	sling  *sling.Sling
 	apiKey string
 	region string
-	C      *sling.Sling
+	Path    string
 }
 
 type GuideboxParams map[string]interface{}
 
 func NewGuideboxClient(client *http.Client, APIkey string) *GuideboxClient {
 	return &GuideboxClient{
-		sling:  sling.New().Client(client).Base(BaseURL).Path(APIVersion),
+		sling:  sling.New().Base(fmt.Sprintf("%v/%v", BaseURL, APIkey)),
 		apiKey: APIkey,
 	}
 }
@@ -45,19 +47,22 @@ func NewGuideboxClient(client *http.Client, APIkey string) *GuideboxClient {
 
 /* End Data Structs */
 
-func (client *GuideboxClient) GetShows(args ...interface{}) *sling.Sling {
-	client.C = client.sling.New().Path(showsURL)
-	return client.C
+func (client *GuideboxClient) Request() (*http.Request, error) {
+	return client.sling.Path(client.Path).Request()
+}
+
+func (client *GuideboxClient) GetShows(args ...interface{}) *GuideboxClient {
+	client.Path = fmt.Sprintf("%v/%v", client.Path, showsURL)
+	return client
 }
 
 func (client *GuideboxClient) SetParams(params GuideboxParams) *sling.Sling {
 	params["api_key"] = client.apiKey
-	client.C = client.C.QueryStruct(params)
-	return client.C
+	return client.sling.Path(client.Path).QueryStruct(params)
 }
 
-func (client *GuideboxClient) ShowId(id string) *sling.Sling {
-	client.C = client.C.Path("/" + id)
-	return client.C
+func (client *GuideboxClient) ShowId(id interface{}) *GuideboxClient {
+	client.C = client.C.Path(fmt.Sprintf("/%v", id))
+	return client
 
 }
