@@ -4,13 +4,9 @@ package guidebox
 // https://github.com/HackerNews/API
 
 import (
-	"github.com/dghubble/sling"
 	"net/http"
-	"strconv"
-	"errors"
-	"strings"
-	"fmt"
-	"path"
+
+	"github.com/dghubble/sling"
 )
 
 const (
@@ -33,17 +29,15 @@ type GuideboxClient struct {
 	sling  *sling.Sling
 	apiKey string
 	region string
+	C      *sling.Sling
 }
 
-func NewGuideboxClient(client *http.Client, APIkey string, args ...interface{}) *GuideboxClient {
-	region := "US"
-	if args["region"] != nil {
-		region = args["region"].(string)
-	}
+type GuideboxParams map[string]interface{}
+
+func NewGuideboxClient(client *http.Client, APIkey string) *GuideboxClient {
 	return &GuideboxClient{
 		sling:  sling.New().Client(client).Base(BaseURL).Path(APIVersion),
 		apiKey: APIkey,
-		region: region,
 	}
 }
 
@@ -51,37 +45,19 @@ func NewGuideboxClient(client *http.Client, APIkey string, args ...interface{}) 
 
 /* End Data Structs */
 
-func (client *GuideboxClient) GetShows(args ...interface{}) (result map[string]interface{}, err error) {
-	var offset string
-	var limit string
-	var sources string
-	var platform string
-	var tags []string
-
-	params := map[string]interface{}{}
-
-	params["api_key"] = client.apiKey
-	switch {
-	case offset:
-		params["offset"] = offset
-	case limit:
-		params["limit"] = limit
-	case sources:
-		params["sources"] = sources
-	case platform:
-		params["platform"] = platform
-	case tags:
-		params["tags"] = strings.Join(tags, ",")
-	}
-
-	_, err = client.sling.New().Get(showsURL).QueryStruct(params).ReceiveSuccess(&result)
-
-	if err != nil{
-		return nil, err
-	}
-
-	return result, err
+func (client *GuideboxClient) GetShows(args ...interface{}) *sling.Sling {
+	client.C = client.sling.New().Path(showsURL)
+	return client.C
 }
 
+func (client *GuideboxClient) SetParams(params GuideboxParams) *sling.Sling {
+	params["api_key"] = client.apiKey
+	client.C = client.C.QueryStruct(params)
+	return client.C
+}
 
+func (client *GuideboxClient) ShowId(id string) *sling.Sling {
+	client.C = client.C.Path("/" + id)
+	return client.C
 
+}
