@@ -14,11 +14,13 @@ func TestNewGuideboxClient(t *testing.T) {
 		t.Error("Expected Guidebox")
 	}
 }
+func TestGuideboxClient_SetParams(t *testing.T) {
 
+}
 
 func TestGuideboxClient_GetShows(t *testing.T) {
 	client := &http.Client{}
-	g := NewGuideboxClient(client, "hello world")
+	g := NewGuideboxClient(client, "v2")
 
 	req, err :=  g.GetShows().Request()
 
@@ -45,7 +47,7 @@ func TestGuideboxClient_ShowId(t *testing.T) {
 		t.Error( "There was an error", err)
 	}
 
-	if req.URL.Path != "/shows/6569" {
-		t.Error("Expected /shows in path got ", req.URL.Path)
+	if req.URL.Path != "/v2/shows/6569" {
+		t.Error("Expected /v2/shows/6569 in path got ", req.URL.Path)
 	}
 }

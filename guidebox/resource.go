@@ -38,7 +38,7 @@ type GuideboxParams map[string]interface{}
 
 func NewGuideboxClient(client *http.Client, APIkey string) *GuideboxClient {
 	return &GuideboxClient{
-		sling:  sling.New().Base(fmt.Sprintf("%v/%v", BaseURL, APIkey)),
+		sling:  sling.New().Base(BaseURL),
 		apiKey: APIkey,
 	}
 }
@@ -52,7 +52,7 @@ func (client *GuideboxClient) Request() (*http.Request, error) {
 }
 
 func (client *GuideboxClient) GetShows(args ...interface{}) *GuideboxClient {
-	client.Path = fmt.Sprintf("%v/%v", client.Path, showsURL)
+	client.Path =  fmt.Sprintf("%v%v", APIVersion, showsURL)
 	return client
 }
 
@@ -62,7 +62,7 @@ func (client *GuideboxClient) SetParams(params GuideboxParams) *sling.Sling {
 }
 
 func (client *GuideboxClient) ShowId(id interface{}) *GuideboxClient {
-	client.C = client.C.Path(fmt.Sprintf("/%v", id))
+	client.Path = fmt.Sprintf("%v/%v",client.Path, id)
 	return client
 
 }
