@@ -34,7 +34,11 @@ type GuideboxClient struct {
 	Path    string
 }
 
-type GuideboxParams map[string]interface{}
+type GuideboxParams struct {
+	Hello string
+	World string
+	ApiKey string
+}
 
 func NewGuideboxClient(client *http.Client, APIkey string) *GuideboxClient {
 	return &GuideboxClient{
@@ -57,7 +61,7 @@ func (client *GuideboxClient) GetShows(args ...interface{}) *GuideboxClient {
 }
 
 func (client *GuideboxClient) SetParams(params GuideboxParams) *sling.Sling {
-	params["api_key"] = client.apiKey
+	params.ApiKey = client.apiKey
 	return client.sling.Path(client.Path).QueryStruct(params)
 }
 
